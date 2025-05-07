@@ -1,7 +1,7 @@
 # OptionPricingModel
-Attempt at an option pricing model using the Factory Method design methodology. 
+Attempt at an option pricing model using the Factory Method design pattern. 
 
-This model was used to gain exposure to object oriented programming, attempt to implement the Factory Method desing methodology, and attempt to design for scalability. 
+This model was used to gain exposure to object oriented programming, attempt to implement the Factory Method desing pattern, and attempt to design for scalability. 
 
 This model takes a user input by running main.py, and returns all "profitable" contracts found in a .csv file.
 
