@@ -1,4 +1,7 @@
 # OptionPricingModel
+
+Update May 10 2025: Fixed memory issues and circular redundancy.
+
 Attempt at an option pricing model using the Factory Method design pattern. 
 
 This model was used to gain exposure to object oriented programming, attempt to implement the Factory Method desing pattern, and attempt to design for scalability. 
