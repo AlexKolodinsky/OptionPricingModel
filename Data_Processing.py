@@ -14,7 +14,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 
 
-tickers = ["AAPL", "NVDA", "MSFT", "GOOG"]                                  # This can be fed in by the user in the future
+tickers = ["AAPL", "NVDA", "MSFT", "GOOG", "TSLA", "V", "JPM", "AMZN", "AVGO", "PLTR"]                                  # This can be fed in by the user in the future
 
 def compile_options_data(ticker_symbol):                                            # Compiles put and call options data for a singular ticker
     ticker = yf.Ticker(ticker_symbol)
@@ -52,10 +52,12 @@ def compile_options_data(ticker_symbol):                                        
         Ticker=ticker_symbol, 
         Type="Put", 
         Underlying_Price = close_price, 
-        Vol = scaled_volatility, 
+        Vol = latest_volatility, 
         rfr = 0.0275, 
         ttm = ttm_years
     )    
+    calls = calls[(calls['bid'] != 0) & (calls['ask'] != 0)]                        # Removing any call / put that has a bid or ask of 0
+    puts = puts[(puts['bid'] != 0) & (puts['ask'] != 0)]
 
     return pd.concat([calls, puts])                                                 # Concatinating calls and puts data using pandas 
 
