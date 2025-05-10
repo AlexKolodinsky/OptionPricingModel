@@ -8,11 +8,12 @@ Description:
 
 import numpy as np
 import pandas as pd
-import PricingFactory as pf
+import PricingModels as pf
 import ContractFactory as cf
 
 class ContractLoader:
     """ Handles loading contracts from CSV file data and ContractFactory Parameters """
+    """ Attempt to centralize all of the pricing and trading edge actions here, instead of in the Contract class """
     
     csv_file = "contract_data.csv"
 
@@ -26,18 +27,14 @@ class ContractLoader:
         df = pd.read_csv(filename)                        # Reads CSV file
         contract_data = []
         
-        df.dropna(subset=["Type"], inplace=True)          # Filtering dataset
+        df.dropna(subset=["Type", "ask"], inplace=True)          # Filtering dataset
         df["Type"] = df["Type"].astype(str).str.strip()
-        df.dropna(subset=["ask"], inplace=True)  
         df = df[df["ask"] != 0]
        
+        pricing_factory = pf.PricingModelFactory()        # Using dependency injection to help with previous pricing memory issue.
+        
         for _, row in df.iterrows():
-            contract_type = row["Type"]
-            
-            # Tried a bunch of ways to precompute pricing estimate before instantiation to avoid processing unprofitable contracts
-            # Tried running without trying to filter instances on a larger dataset - not great.
-            # However I kept running into the problem of creating an instance just to avoid an instance.
-            # For now im going to lower my dataset and figure out whats best to do, or other parameters that i could use to pre-filter contracts. 
+            contract_type = row["Type"] 
 
             contract = ContractLoader.assign_contract_type(
                 row["contractSymbol"], 
@@ -50,8 +47,10 @@ class ContractLoader:
                 row.get("ask", 0)
             )
             
-            contract.apply_correct_pricing()
-            if contract.trading_edge > 0:                                   # Only include contracts that have a trading edge.  
+            ContractLoader.apply_correct_pricing(contract, pricing_factory)                 # Consider dding a filter to only price ITM contracts
+            ContractLoader.apply_trading_edge(contract)
+            
+            if contract.trading_edge > 0:                                   # Only append contracts that have a positive trading edge  
                 contract_data.append(contract)
 
         return contract_data
@@ -67,3 +66,21 @@ class ContractLoader:
         else:
             raise ValueError(f"Invalid contract type: {contract_type}")
 
+    @staticmethod
+    def apply_correct_pricing(contract, pricing_model):
+        pricing_model = pricing_model.select_pricing_model(contract)
+        
+        if pricing_model:
+            contract.calc_price = pricing_model.compute_price()
+            contract.pricing_model_name = pricing_model.get_pricing_model_name()
+
+    @staticmethod
+    def apply_trading_edge(contract):
+        # Create and apply TradingEdge logic
+        trading_edge = pf.TradingEdge(contract)
+        trading_edge.compute_trading_edge()
+        trading_edge.compute_trading_edge_percent()
+
+        # Store the calculated values back into the BaseContract instance
+        contract.trading_edge = trading_edge.trading_edge
+        contract.trading_edge_percent = trading_edge.trading_edge_percent
