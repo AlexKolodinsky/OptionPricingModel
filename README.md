@@ -1,6 +1,7 @@
 # OptionPricingModel
 
 Update May 10 2025: Fixed memory issues and circular redundancy.
+                    Added an interactive dashboard.
 
 Attempt at an option pricing model using the Factory Method design pattern. 
 
