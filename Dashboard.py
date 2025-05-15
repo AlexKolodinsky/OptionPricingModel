@@ -1,37 +1,82 @@
+"""
+Filename: main.py
+Author: Alex Kolodinsky
+Created: 2025-05-04
+Description: 
+    Try to implement factory method.
+"""
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import main
 from datetime import datetime
+from Corra import get_latest_corra
 
 # Initialization - store time of last run
 if "last_run" not in st.session_state:
     st.session_state.last_run = "Not run yet"
 
-# Dashboard button to re-run program    
-if st.button("Run Pricing Model & Update CSV"):
-    with st.spinner("Running pricing model..."):
-        main.main()  # call the function from your main.py
-        st.session_state.last_run = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        st.success("CSV updated!")
-        st.rerun()
-        
-#Display the last time the dashboard was run
-st.write(f"Last run time: {st.session_state.last_run}")
+if "model_run" not in st.session_state:
+    st.session_state.model_run = False
 
-df = pd.read_csv(r'C:\Users\alex.kolodinsky_motu\Desktop\OptionPricingModel-main/profitable_contracts_output.csv', header=0)
+st.header("Options Pricing Model")
+
+column1, column2 = st.columns([3, 1])
+
+with column1:
+# Dashboard button to re-run program    
+    if st.button("Run Pricing Model & Update CSV"):
+        with st.spinner("Running pricing model..."):
+            main.main()  # call the function from your main.py
+            st.session_state.last_run = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            st.session_state.model_run = True
+            st.success(f"CSV updated! Last run time: {st.session_state.last_run}")
+
+with column2:
+    # Create Corra
+    try:
+        corra = get_latest_corra()
+        st.metric("CORRA Rate", f"{corra*100:.2f}%")
+    except Exception as e:
+        st.error(f"Could not fetch CORRA: {e}")    
+
+if st.session_state.model_run:
+    st.session_state.model_run = False
+
+df = pd.read_csv('profitable_contracts_output.csv')
 
 # Create Select Column
 if "Select" not in df.columns:
     df.insert(0, "Select", False)
 
-
-#Sidebar Filters
+# Sidebar Filters
 st.sidebar.header("Filters")
 
+# Contract type filter
+st.sidebar.subheader("Contract Type:")
+contract_options = df["Type"].unique()
+selected_contract_type = st.sidebar.pills(
+    label = "Select Contract Type(s)",
+    selection_mode = "multi",
+    options = contract_options,
+    default = contract_options
+)
+# Change boolean values to str for dashboard
+df["Moneyness"] = df["In The Money"].map({True: "In the Money", False: "Out of the Money"})
+
+# ITM filter
+st.sidebar.subheader("Moneyness Filter:")
+moneyness = df["Moneyness"].unique()
+selected_moneyness = st.sidebar.pills(
+    label = "Filter by Moneyness",
+    selection_mode = "multi",
+    options = moneyness,
+    default = moneyness
+)
 
 # **Sort by Trading Edge**
-st.sidebar.write("### Sort by Trading Edge (%):")
+st.sidebar.subheader("Trading Edge (%):")
 sort_order = st.sidebar.radio(
     "Sort Order:", 
     ["Low-to-High", "High-to-Low"],
@@ -45,23 +90,32 @@ min_edge = st.sidebar.slider(
     value=0.0,
     step=0.1
 )
+
 #Company Filter
-st.sidebar.write("### Sort by Company")
+st.sidebar.subheader("Sort by Company")
 selected_companies = st.sidebar.multiselect(
-    "Filter by Company",  # Non-empty label for accessibility
+    "Select Company to Filter:",  # Non-empty label for accessibility
     options=df["Company"].unique(),
     default=df["Company"].unique(),
-    label_visibility="hidden"  # Hides the label visually while keeping accessibility intact
+    #label_visibility="hidden"  # Hides the label visually while keeping accessibility intact
 )
 
+st.sidebar.markdown(
+    "[![GitHub - Option Pricing Model](https://img.shields.io/badge/Github:_-Option_Pricing_Model_Repository-brightgreen)](https://github.com/AlexKolodinsky/OptionPricingModel) \n"
+    "![Author: Alex Kolodinsky](https://img.shields.io/badge/Author:-Alex_Kolodinsky-blue)    \n"
+    "![Date: 2025-05-10](https://img.shields.io/badge/Date:____-2025--05--10-lightgrey)    \n"
+)
 
-# Apply filtering
-
-# Company filtering
+# Applying all filtering
 filtered_df = df[
     (df["Company"].isin(selected_companies)) & 
-    (df["Percent_Edge"] >= min_edge)
+    (df["Percent_Edge"] >= min_edge) &
+    (df["Type"].isin(selected_contract_type)) &
+    (df["Moneyness"].isin(selected_moneyness))
     ].copy()
+
+# Remove boolean ITM column
+filtered_df = filtered_df.drop(columns=["In The Money"])
 
 #apply sorting by trading edge
 filtered_df = filtered_df.sort_values(
@@ -79,11 +133,10 @@ def handle_selection(index):
     
 
 # **Editable table with checkboxes**
-st.write("### Profitable Options Contracts:")
-st.write("Select one at a time to expand data")
+st.subheader("Profitable Options Contracts:")
+st.info("Select one contract at a time to expand data")
 # Track Selected Contract in Session State
 edited_df = st.data_editor(filtered_df, key="editor", use_container_width=True)
-
 selected_rows = edited_df[edited_df["Select"] == True]
 
 if not selected_rows.empty:
@@ -92,7 +145,7 @@ if not selected_rows.empty:
     #Deselect everything else
     df["Select"] = False
     df.loc[selected_index, "Select"] = True
- 
+
 # Display selected contract details
 if st.session_state.selected_index is not None:
     selected_contract = df.loc[st.session_state.selected_index].to_dict()
