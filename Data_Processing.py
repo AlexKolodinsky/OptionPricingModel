@@ -14,7 +14,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 
 
-tickers = ["AAPL", "NVDA", "MSFT", "GOOG", "TSLA", "V", "JPM", "AMZN", "AVGO", "PLTR"]                                  # This can be fed in by the user in the future
+tickers = ["AAPL", "NVDA", "MSFT", "GOOG", "TSLA", "V", "JPM", "AMZN", "AVGO", "PLTR", "SPY"]                                  # This can be fed in by the user in the future
 
 def compile_options_data(ticker_symbol):                                            # Compiles put and call options data for a singular ticker
     ticker = yf.Ticker(ticker_symbol)
@@ -23,12 +23,16 @@ def compile_options_data(ticker_symbol):                                        
     if not options_dates:
         return None
     
+
+    # Calculate ttm
     expiry = options_dates[0]                                                        # options with the earliest expiry
     expiry_date = datetime.strptime(expiry, "%Y-%m-%d")
     today = datetime.today()
     ttm_days = (expiry_date - today).days
     ttm_years = ttm_days / 365                                                       # Calculate ttm in days.
 
+
+    # Calculate rolling volatility
     stock_data = ticker.history(period="1y")                                         # Attempt at calculating volatility from online resources.
     returns = stock_data["Close"].pct_change().dropna()                              # Assuming volatility should be dependant on ttm.
     rolling_window = max(5, int(ttm_days))                                           # Annualied volatility doesnt make sense for short ttm options
@@ -39,12 +43,22 @@ def compile_options_data(ticker_symbol):                                        
     options_chain = ticker.option_chain(expiry)                                     # Option_dates[0] = nearest expiry date
     close_price = ticker.info.get("previousClose")                                  # Fetches underlying price at close (did this for simplicity)
    
+    # Calculating rfr based on length of contract and T-Bill yields (not T-Bill int. need to fix)
+    corra = 0.0275                                                                  # Placeholder incase used in the future
+    if ttm_years < 0.25:
+       ttm_adjusted_rfr = yf.Ticker("^IRX").history(period="1d")["Close"].iloc[-1] / 100
+    elif ttm_years < 1:
+        ttm_adjusted_rfr = yf.Ticker("^FVX").history(period="1d")["Close"].iloc[-1] / 100
+    else:
+        ttm_adjusted_rfr = yf.Ticker("^TNX").history(period="1d")["Close"].iloc[-1] / 100
+
+
     calls = options_chain.calls.assign(
         Ticker=ticker_symbol, 
         Type="Call", 
         Underlying_Price = close_price, 
         Vol = latest_volatility, 
-        rfr = 0.0275,                                                               # I looked this value up - in the future this should be dynamic
+        rfr = corra,                                                               # I looked this value up - in the future this should be dynamic
         ttm = ttm_years
     )
     
@@ -53,13 +67,22 @@ def compile_options_data(ticker_symbol):                                        
         Type="Put", 
         Underlying_Price = close_price, 
         Vol = latest_volatility, 
-        rfr = 0.0275, 
+        rfr = corra, 
         ttm = ttm_years
     )    
-    calls = calls[(calls['bid'] != 0) & (calls['ask'] != 0)]                        # Removing any call / put that has a bid or ask of 0
-    puts = puts[(puts['bid'] != 0) & (puts['ask'] != 0)]
+    
+    # Dropping contracts with missing data / seemingly low liquidity
+    calls = calls.dropna(subset=["bid", "ask", "volume", "openInterest"])
+    puts = puts.dropna(subset=["bid", "ask", "volume", "openInterest"])
 
-    return pd.concat([calls, puts])                                                 # Concatinating calls and puts data using pandas 
+    # Filtering contracts 
+    calls = calls[(calls["bid"] != 0) & (calls["ask"] != 0) & (calls["ttm"] != 0)]                        # Removing 0 values from calls and puts
+    puts = puts[(puts["bid"] != 0) & (puts["ask"] != 0) & (puts["ttm"] != 0)]
+
+    # Further filtering for illiquid contracts
+    filtered_calls = calls[(calls["volume"] > 5) & (calls["openInterest"] > 5)]
+    filtered_puts = puts[(puts["volume"] > 5) & (puts["openInterest"] > 5)]
+    return pd.concat([filtered_calls, filtered_puts])                                                 # Concatinating calls and puts data using pandas 
 
 def combine_options_data(tickers):                                                  # Combining data from compile_options_data function and list "tickers"
     options_data_list = []

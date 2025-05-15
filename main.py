@@ -36,14 +36,20 @@ def main():
                 "Percent_Edge": round(contract.trading_edge_percent, 2),
                 "Underlying_Price": contract.S,
                 "Strike": contract.K,
+                "In The Money": contract.itm,
                 "Algorithm Used": contract.pricing_model_name,
                 "Calculated_Price": round(contract.calc_price, 4),
                 "Ask": round(contract.ask, 4),
                 "Edge": round(contract.trading_edge, 4),
-                "TTM": round(contract.T, 4),
+                "TTM": round(contract.T, 6),
                 "RFR": contract.r,
-                "Volatility": round(contract.sigma, 4)
-                
+                "Volatility": round(contract.sigma, 4),
+                "Delta": round(contract.delta, 4),
+                "Gamma": round(contract.gamma, 4),
+                "Vega": round(contract.vega, 4),
+                "Theta": round(contract.theta, 4),
+                "Rho": round(contract.rho, 4),
+
             }
             output_data.append(contract_info)
 

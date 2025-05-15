@@ -32,7 +32,13 @@ class PricingModel(ABC):
     """Initialize an abstract class for pricing algorithms"""
 
     def __init__(self, contract):
-        self.contract = contract
+        self.contract = contract                                    # Initializing to not have to keep writing "self.contract"
+        self.S = contract.S                                         # Code is more readable
+        self.K = contract.K
+        self.T = contract.T
+        self.r = contract.r
+        self.sigma = contract.sigma
+        self.type = contract.type
 
     @abstractmethod
     def compute_price(self):
@@ -49,13 +55,13 @@ class BlackScholesPricing(PricingModel):
         super().__init__(contract)
     
     def compute_price(self):
-        d1 = (np.log(self.contract.S / self.contract.K) + (self.contract.r + 0.5 * self.contract.sigma**2) * self.contract.T) / (self.contract.sigma * np.sqrt(self.contract.T))
-        d2 = d1 - self.contract.sigma * np.sqrt(self.contract.T)
+        d1 = (np.log(self.S / self.K) + (self.r + 0.5 * self.sigma**2) * self.T) / (self.sigma * np.sqrt(self.T))
+        d2 = d1 - self.sigma * np.sqrt(self.T)
         
-        if self.contract.type == "Call":
-            return self.contract.S * norm.cdf(d1) - self.contract.K * np.exp(-self.contract.r * self.contract.T) * norm.cdf(d2)
-        elif self.contract.type == "Put":
-            return self.contract.K * np.exp(-self.contract.r * self.contract.T) * norm.cdf(-d2) - self.contract.S * norm.cdf(-d1)
+        if self.type == "Call":
+            return self.S * norm.cdf(d1) - self.K * np.exp(-self.r * self.T) * norm.cdf(d2)
+        elif self.type == "Put":
+            return self.K * np.exp(-self.r * self.T) * norm.cdf(-d2) - self.S * norm.cdf(-d1)
         else:
             return None
         
@@ -93,3 +99,62 @@ class TradingEdge:
             self.trading_edge_percent = ((self.contract.calc_price / self.contract.ask) - 1) * 100
         else:
             self.trading_edge_percent = 0   
+
+class Greeks:
+
+    def __init__(self, contract):
+        self.contract = contract                                    # Initializing to not have to keep writing "self.contract"
+        self.S = contract.S                                         # Code is more readable
+        self.K = contract.K
+        self.T = contract.T
+        self.r = contract.r
+        self.sigma = contract.sigma
+        self.type = contract.type
+        self.pricing_model_name = contract.pricing_model_name
+        self.d1, self.d2 = self.calculate_d1_d2()
+        
+    def calculate_d1_d2(self):                                      # Eliminate the need to recalc d1 and d2
+        d1 = (np.log(self.S / self.K) + (self.r + 0.5 * self.sigma**2) * self.T) / (self.sigma * np.sqrt(self.T))
+        d2 = d1 - self.sigma * np.sqrt(self.T)
+        #print(f"Calculated d1: {d1}, d2: {d2}")                     # Debug
+        return d1, d2
+
+    def compute_greeks(self):
+        # Calculate Greeks on demand, depending on pricing model used
+        if self.pricing_model_name == "Black Scholes Pricing":
+            self.delta = self.calculate_delta()
+            self.gamma = self.calculate_gamma()
+            self.vega = self.calculate_vega()
+            self.theta = self.calculate_theta()
+            self.rho = self.calculate_rho()
+
+    def calculate_delta(self):
+        if self.type == "Call":
+            self.delta = norm.cdf(self.d1)
+        elif self.type == "Put":
+            self.delta = norm.cdf(self.d1) - 1
+        return self.delta
+
+    def calculate_gamma(self):
+        self.gamma = norm.pdf(self.d1) / (self.S * self.sigma * np.sqrt(self.T))
+        return self.gamma
+
+    def calculate_vega(self):
+        self.vega = self.S * norm.pdf(self.d1) * np.sqrt(self.T) / 100          # Scaled for a 1% change
+        return self.vega
+    
+    def calculate_theta(self):
+        if self.type == "Call":
+            theta = (-self.S * norm.pdf(self.d1) * self.sigma) / (2 * np.sqrt(self.T)) - self.r * self.K * np.exp(-self.r * self.T) * norm.cdf(self.d2)     
+        elif self.type == "Put":
+            theta = (-self.S * norm.pdf(self.d1) * self.sigma) / (2 * np.sqrt(self.T)) + self.r * self.K * np.exp(-self.r * self.T) * norm.cdf(-self.d2)    
+        self.theta = theta / 365                                                                # Scaled daily
+        return self.theta
+
+    def calculate_rho(self):
+        if self.type == "Call":
+            rho = self.K * self.T * np.exp(-self.r * self.T) * norm.cdf(self.d2)
+        elif self.type == "Put":
+            rho = -self.K * self.T * np.exp(-self.r * self.T) * norm.cdf(-self.d2)   
+        self.rho = rho / 100                                                                    # Scaled 1% change
+        return self.rho

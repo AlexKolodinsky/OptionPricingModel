@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import PricingModels as pf
 import ContractFactory as cf
+from Corra import get_latest_corra
 
 class ContractLoader:
     """ Handles loading contracts from CSV file data and ContractFactory Parameters """
@@ -33,6 +34,12 @@ class ContractLoader:
        
         pricing_factory = pf.PricingModelFactory()        # Using dependency injection to help with previous pricing memory issue.
         
+        try:                                              # Fetching CORRRA rate (look into if applying a spread would be more accurate)
+            corra_rate = get_latest_corra()
+        except Exception as e:
+            print(f"Warning: Could not fetch CORRA. Using default rate of 2.75%. Error: {e}")
+            corra_rate = 0.0275
+
         for _, row in df.iterrows():
             contract_type = row["Type"] 
 
@@ -40,8 +47,9 @@ class ContractLoader:
                 row["contractSymbol"], 
                 row["Underlying_Price"], 
                 row["strike"], 
+                row["inTheMoney"],
                 row["ttm"], 
-                row["rfr"], 
+                corra_rate, 
                 row["Vol"], 
                 contract_type,
                 row.get("ask", 0)
@@ -49,6 +57,7 @@ class ContractLoader:
             
             ContractLoader.apply_correct_pricing(contract, pricing_factory)                 # Consider dding a filter to only price ITM contracts
             ContractLoader.apply_trading_edge(contract)
+            ContractLoader.calculate_greeks(contract)
             
             if contract.trading_edge > 0:                                   # Only append contracts that have a positive trading edge  
                 contract_data.append(contract)
@@ -56,12 +65,12 @@ class ContractLoader:
         return contract_data
 
     @staticmethod
-    def assign_contract_type(name, underlying_price, strike_price, ttm, risk_free_rate, volatility, contract_type, ask):                          
+    def assign_contract_type(name, underlying_price, strike_price, itm, ttm, risk_free_rate, volatility, contract_type, ask):                          
 
         if contract_type == "Call":
-            return cf.CallOption(name, underlying_price, strike_price, ttm, risk_free_rate, volatility, contract_type, ask)
+            return cf.CallOption(name, underlying_price, strike_price, itm, ttm, risk_free_rate, volatility, contract_type, ask)
         elif contract_type == "Put":
-            return cf.PutOption(name, underlying_price, strike_price, ttm, risk_free_rate, volatility, contract_type, ask)
+            return cf.PutOption(name, underlying_price, strike_price, itm, ttm, risk_free_rate, volatility, contract_type, ask)
 
         else:
             raise ValueError(f"Invalid contract type: {contract_type}")
@@ -84,3 +93,15 @@ class ContractLoader:
         # Store the calculated values back into the BaseContract instance
         contract.trading_edge = trading_edge.trading_edge
         contract.trading_edge_percent = trading_edge.trading_edge_percent
+
+    @staticmethod
+    def calculate_greeks(contract):
+        if contract.calc_price is not None:
+            greeks = pf.Greeks(contract)
+            greeks.compute_greeks()
+            
+        contract.delta = greeks.delta
+        contract.gamma = greeks.gamma
+        contract.vega = greeks.vega
+        contract.theta = greeks.theta
+        contract.rho = greeks.rho
