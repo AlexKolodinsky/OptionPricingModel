@@ -27,7 +27,7 @@ class BaseContract(ABC):
         self.ask = ask
 
         # Calculated later  - initialization
-        self.calc_price = None
+        self.fair_value = None
         self.trading_edge = None
         self.trading_edge_percent = None
         self.pricing_model_name = None
@@ -41,16 +41,26 @@ class BaseContract(ABC):
 
             
     def __str__(self):
-        return f"{self.name} {self.S} {self.K} {self.T} {self.r} {self.sigma} {self.type} {self.ask}, {self.calc_price}, {self.trading_edge}, {type(self.pricing_model).__name__}, {self.delta}, {self.gamma}, {self.vega}, {self.theta}, {self.rho}"
+        return f"{self.name} {self.S} {self.K} {self.T} {self.r} {self.sigma} {self.type} {self.ask}, {self.fair_value}, {self.trading_edge}, {type(self.pricing_model).__name__}, {self.delta}, {self.gamma}, {self.vega}, {self.theta}, {self.rho}"
 
 
 """Further Separate Base Contract into Types of Contracts"""
 
 class CallOption(BaseContract):
-    pass                    # For future use
+    
+    def payoff(self):
+        return max(0, self.S - self.K)
+    
+    def in_the_money(self):
+        return self.S > self.K
+                            
         
 class PutOption(BaseContract):
-    pass                     # For future use
+    def payoff(self):
+        return max(0, self.K - self.S)
+    
+    def in_the_money(self):
+        return self.S < self.K
 
 class VerticalSpread(BaseContract):
     pass                    # Future use - same maturity, different strike

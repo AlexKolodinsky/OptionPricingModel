@@ -28,34 +28,22 @@ class ContractLoader:
         df = pd.read_csv(filename)                        # Reads CSV file
         contract_data = []
         
-        df.dropna(subset=["Type", "ask"], inplace=True)          # Filtering dataset
+        df.dropna(subset=["Type", "ask"], inplace=True)   # Filter again - redundant
         df["Type"] = df["Type"].astype(str).str.strip()
         df = df[df["ask"] != 0]
-       
-        pricing_factory = pf.PricingModelFactory()        # Using dependency injection to help with previous pricing memory issue.
-        
-        try:                                              # Fetching CORRRA rate (look into if applying a spread would be more accurate)
+               
+        try:                                              # Fetching CORRA rate - can be changed in future to add a spread. 
             corra_rate = get_latest_corra()
         except Exception as e:
             print(f"Warning: Could not fetch CORRA. Using default rate of 2.75%. Error: {e}")
             corra_rate = 0.0275
+        
+        pricing_factory = pf.PricingModelFactory()        # Initializing PricingModelFactory
 
         for _, row in df.iterrows():
-            contract_type = row["Type"] 
 
-            contract = ContractLoader.assign_contract_type(
-                row["contractSymbol"], 
-                row["Underlying_Price"], 
-                row["strike"], 
-                row["inTheMoney"],
-                row["ttm"], 
-                corra_rate, 
-                row["Vol"], 
-                contract_type,
-                row.get("ask", 0)
-            )
-            
-            ContractLoader.apply_correct_pricing(contract, pricing_factory)                 # Consider dding a filter to only price ITM contracts
+            contract = ContractLoader.assign_contract_type(row, corra_rate)
+            ContractLoader.apply_correct_pricing(contract, pricing_factory)                 # Consider doing a filter to only price ITM contracts
             ContractLoader.apply_trading_edge(contract)
             ContractLoader.calculate_greeks(contract)
             
@@ -65,7 +53,17 @@ class ContractLoader:
         return contract_data
 
     @staticmethod
-    def assign_contract_type(name, underlying_price, strike_price, itm, ttm, risk_free_rate, volatility, contract_type, ask):                          
+    def assign_contract_type(row, corra_rate):                          
+
+        name = row["contractSymbol"] 
+        underlying_price = row["Underlying_Price"] 
+        strike_price = row["strike"] 
+        itm = row["inTheMoney"]
+        ttm = row["ttm"] 
+        risk_free_rate = corra_rate 
+        volatility = row["Vol"] 
+        contract_type = row["Type"]
+        ask = row["ask"]        
 
         if contract_type == "Call":
             return cf.CallOption(name, underlying_price, strike_price, itm, ttm, risk_free_rate, volatility, contract_type, ask)
@@ -80,7 +78,7 @@ class ContractLoader:
         pricing_model = pricing_model.select_pricing_model(contract)
         
         if pricing_model:
-            contract.calc_price = pricing_model.compute_price()
+            contract.fair_value = pricing_model.compute_price()
             contract.pricing_model_name = pricing_model.get_pricing_model_name()
 
     @staticmethod
@@ -96,7 +94,7 @@ class ContractLoader:
 
     @staticmethod
     def calculate_greeks(contract):
-        if contract.calc_price is not None:
+        if contract.fair_value is not None:
             greeks = pf.Greeks(contract)
             greeks.compute_greeks()
             

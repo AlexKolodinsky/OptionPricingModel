@@ -22,8 +22,10 @@ def main():
     profitable_contracts.sort(key=lambda contract: contract.trading_edge_percent, reverse=True)         # sort
 
     for contract in profitable_contracts:
-        print(f"Contract: {contract.name}, Type: {contract.type}, Price: {contract.calc_price:.2f}, Ask: {contract.ask:.2f}, Edge: {contract.trading_edge:.2f}, Percent Edge: {contract.trading_edge_percent:.2f} (%) ")
+        print(f"Contract: {contract.name}, Type: {contract.type}, Price: {contract.fair_value:.2f}, Ask: {contract.ask:.2f}, Edge: {contract.trading_edge:.2f}, Percent Edge: {contract.trading_edge_percent:.2f} (%) ")
     
+    
+    # Done for the dashboard. There should be a better way to call correctly from the data stored in the contract factory. (Research)
     if profitable_contracts:
         output_data = []
         for contract in profitable_contracts:
@@ -38,7 +40,7 @@ def main():
                 "Strike": contract.K,
                 "In The Money": contract.itm,
                 "Algorithm Used": contract.pricing_model_name,
-                "Calculated_Price": round(contract.calc_price, 4),
+                "Calculated_Price": round(contract.fair_value, 4),
                 "Ask": round(contract.ask, 4),
                 "Edge": round(contract.trading_edge, 4),
                 "TTM": round(contract.T, 6),

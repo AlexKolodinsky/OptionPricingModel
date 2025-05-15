@@ -91,12 +91,12 @@ class TradingEdge:
         self.trading_edge_percent = None
 
     def compute_trading_edge(self):
-        if self.contract.calc_price is not None and self.contract.ask is not None:
-            self.trading_edge = self.contract.calc_price - self.contract.ask
+        if self.contract.fair_value is not None and self.contract.ask is not None:
+            self.trading_edge = self.contract.fair_value - self.contract.ask
             
     def compute_trading_edge_percent(self):        
-        if self.contract.calc_price is not None and self.contract.ask is not None:
-            self.trading_edge_percent = ((self.contract.calc_price / self.contract.ask) - 1) * 100
+        if self.contract.fair_value is not None and self.contract.ask is not None:
+            self.trading_edge_percent = ((self.contract.fair_value / self.contract.ask) - 1) * 100
         else:
             self.trading_edge_percent = 0   
 
