@@ -83,22 +83,22 @@ class MonteCarloPricing(PricingModel):
 
 # Expand for Binomial Pricing (future work).
 
-class TradingEdge:
+class PriceDifference:
     
     def __init__(self, contract):
         self.contract = contract
-        self.trading_edge = None
-        self.trading_edge_percent = None
+        self.price_difference = None
+        self.price_difference_percent = None
 
-    def compute_trading_edge(self):
+    def compute_price_difference(self):
         if self.contract.fair_value is not None and self.contract.ask is not None:
-            self.trading_edge = self.contract.fair_value - self.contract.ask
+            self.price_difference = self.contract.fair_value - self.contract.ask
             
-    def compute_trading_edge_percent(self):        
+    def compute_price_difference_percent(self):        
         if self.contract.fair_value is not None and self.contract.ask is not None:
-            self.trading_edge_percent = ((self.contract.fair_value / self.contract.ask) - 1) * 100
+            self.price_difference_percent = ((self.contract.fair_value / self.contract.ask) - 1) * 100
         else:
-            self.trading_edge_percent = 0   
+            self.price_difference_percent = 0   
 
 class Greeks:
 

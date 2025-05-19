@@ -19,14 +19,14 @@ def main():
     """Currently use trading edge as a proxy for profitability, however this should be changed to account for potential transaction costs or other factors """
     profitable_contracts = df.ContractLoader.load_contract()
 
-    profitable_contracts.sort(key=lambda contract: contract.trading_edge_percent, reverse=True)         # sort
+    profitable_contracts.sort(key=lambda contract: contract.price_difference_percent, reverse=True)         # sort
 
     for contract in profitable_contracts:
-        print(f"Contract: {contract.name}, Type: {contract.type}, Price: {contract.fair_value:.2f}, Ask: {contract.ask:.2f}, Edge: {contract.trading_edge:.2f}, Percent Edge: {contract.trading_edge_percent:.2f} (%) ")
+        print(f"Contract: {contract.name}, Type: {contract.type}, Price: {contract.fair_value:.2f}, Ask: {contract.ask:.2f}, Price Difference: {contract.price_difference:.2f}, Price Difference (%): {contract.price_difference_percent:.2f} (%) ")
     
     
     # Done for the dashboard. There should be a better way to call correctly from the data stored in the contract factory. (Research)
-    if profitable_contracts:
+    if profitable_contracts:    
         output_data = []
         for contract in profitable_contracts:
             company_name = re.match(r'^([A-Za-z]+)', contract.name)
@@ -35,14 +35,14 @@ def main():
                 "Company": company_ticker,
                 "Name": contract.name,
                 "Type": contract.type,
-                "Percent_Edge": round(contract.trading_edge_percent, 2),
+                "Price Difference Percent": round(contract.price_difference_percent, 2),
                 "Underlying_Price": contract.S,
                 "Strike": contract.K,
                 "In The Money": contract.itm,
                 "Algorithm Used": contract.pricing_model_name,
                 "Calculated_Price": round(contract.fair_value, 4),
                 "Ask": round(contract.ask, 4),
-                "Edge": round(contract.trading_edge, 4),
+                "Price Difference": round(contract.price_difference, 4),
                 "TTM": round(contract.T, 6),
                 "RFR": contract.r,
                 "Volatility": round(contract.sigma, 4),

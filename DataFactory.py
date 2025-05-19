@@ -44,10 +44,10 @@ class ContractLoader:
 
             contract = ContractLoader.assign_contract_type(row, corra_rate)
             ContractLoader.apply_correct_pricing(contract, pricing_factory)                 # Consider doing a filter to only price ITM contracts
-            ContractLoader.apply_trading_edge(contract)
+            ContractLoader.apply_price_difference(contract)
             ContractLoader.calculate_greeks(contract)
             
-            if contract.trading_edge > 0:                                   # Only append contracts that have a positive trading edge  
+            if contract.price_difference > 0:                                   # Only append contracts that have a positive trading edge  
                 contract_data.append(contract)
 
         return contract_data
@@ -61,7 +61,7 @@ class ContractLoader:
         itm = row["inTheMoney"]
         ttm = row["ttm"] 
         risk_free_rate = corra_rate 
-        volatility = row["Vol"] 
+        volatility = row["impliedVolatility"] 
         contract_type = row["Type"]
         ask = row["ask"]        
 
@@ -82,15 +82,15 @@ class ContractLoader:
             contract.pricing_model_name = pricing_model.get_pricing_model_name()
 
     @staticmethod
-    def apply_trading_edge(contract):
+    def apply_price_difference(contract):
         # Create and apply TradingEdge logic
-        trading_edge = pf.TradingEdge(contract)
-        trading_edge.compute_trading_edge()
-        trading_edge.compute_trading_edge_percent()
+        price_difference = pf.PriceDifference(contract)
+        price_difference.compute_price_difference()
+        price_difference.compute_price_difference_percent()
 
         # Store the calculated values back into the BaseContract instance
-        contract.trading_edge = trading_edge.trading_edge
-        contract.trading_edge_percent = trading_edge.trading_edge_percent
+        contract.price_difference = price_difference.price_difference
+        contract.price_difference_percent = price_difference.price_difference_percent
 
     @staticmethod
     def calculate_greeks(contract):

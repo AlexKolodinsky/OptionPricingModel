@@ -76,17 +76,17 @@ selected_moneyness = st.sidebar.pills(
 )
 
 # **Sort by Trading Edge**
-st.sidebar.subheader("Trading Edge (%):")
+st.sidebar.subheader("Price Difference (%):")
 sort_order = st.sidebar.radio(
     "Sort Order:", 
     ["Low-to-High", "High-to-Low"],
 )
 
 #Trading Edge slide filter
-min_edge = st.sidebar.slider(
-    "Minimum Trading Edge (%)",
+min_price_difference = st.sidebar.slider(
+    "Minimum Price Difference (%)",
     min_value=0.0,
-    max_value=float(df["Percent_Edge"].max()),
+    max_value=float(df["Price Difference"].max()),
     value=0.0,
     step=0.1
 )
@@ -109,7 +109,7 @@ st.sidebar.markdown(
 # Applying all filtering
 filtered_df = df[
     (df["Company"].isin(selected_companies)) & 
-    (df["Percent_Edge"] >= min_edge) &
+    (df["Price Difference"] >= min_price_difference) &
     (df["Type"].isin(selected_contract_type)) &
     (df["Moneyness"].isin(selected_moneyness))
     ].copy()
@@ -119,7 +119,7 @@ filtered_df = filtered_df.drop(columns=["In The Money"])
 
 #apply sorting by trading edge
 filtered_df = filtered_df.sort_values(
-    by="Percent_Edge", ascending=(sort_order == "Low-to-High"))
+    by="Price Difference", ascending=(sort_order == "Low-to-High"))
 
 # Selection state
 if "selected_index" not in st.session_state:
@@ -133,7 +133,8 @@ def handle_selection(index):
     
 
 # **Editable table with checkboxes**
-st.subheader("Profitable Options Contracts:")
+st.subheader("Options Contracts:")
+st.write("The following options displayed have a calculated value greater than their current market ask")
 st.info("Select one contract at a time to expand data")
 # Track Selected Contract in Session State
 edited_df = st.data_editor(filtered_df, key="editor", use_container_width=True)

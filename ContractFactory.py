@@ -28,8 +28,8 @@ class BaseContract(ABC):
 
         # Calculated later  - initialization
         self.fair_value = None
-        self.trading_edge = None
-        self.trading_edge_percent = None
+        self.price_difference = None
+        self.price_difference_percent = None
         self.pricing_model_name = None
 
         # Greeks
@@ -41,7 +41,7 @@ class BaseContract(ABC):
 
             
     def __str__(self):
-        return f"{self.name} {self.S} {self.K} {self.T} {self.r} {self.sigma} {self.type} {self.ask}, {self.fair_value}, {self.trading_edge}, {type(self.pricing_model).__name__}, {self.delta}, {self.gamma}, {self.vega}, {self.theta}, {self.rho}"
+        return f"{self.name} {self.S} {self.K} {self.T} {self.r} {self.sigma} {self.type} {self.ask}, {self.fair_value}, {self.price_difference}, {type(self.pricing_model).__name__}, {self.delta}, {self.gamma}, {self.vega}, {self.theta}, {self.rho}"
 
 
 """Further Separate Base Contract into Types of Contracts"""
