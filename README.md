@@ -7,7 +7,8 @@ Attempt at an option pricing model using the Factory Method design pattern.
 
 This model was used to gain exposure to object oriented programming, attempt to implement the Factory Method desing pattern, and attempt to design for scalability. 
 
-This model takes a user input by running main.py, and returns all "profitable" contracts found in a .csv file.
+This model takes a user input by running main.py, and returns all "profitable" options found in a .csv file.
+For the purposes of this program, a "profitable" option is one where their calculated price is less than the current market ask.
 
 The .csv file is populated with market data by running Data_Processing.py, and was used to help visualize data while creating the model. 
 
