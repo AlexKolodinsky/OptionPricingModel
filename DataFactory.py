@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import PricingModels as pf
 import ContractFactory as cf
-from Corra import get_latest_corra
+from Corra import get_latest_rates
 
 class ContractLoader:
     """ Handles loading contracts from CSV file data and ContractFactory Parameters """
@@ -31,36 +31,30 @@ class ContractLoader:
         df.dropna(subset=["Type", "ask"], inplace=True)   # Filter again - redundant
         df["Type"] = df["Type"].astype(str).str.strip()
         df = df[df["ask"] != 0]
-               
-        try:                                              # Fetching CORRA rate - can be changed in future to add a spread. 
-            corra_rate = get_latest_corra()
-        except Exception as e:
-            print(f"Warning: Could not fetch CORRA. Using default rate of 2.75%. Error: {e}")
-            corra_rate = 0.0275
-        
+
+              
+        rates = get_latest_rates()                        # Fetch risk free rates before loop
         pricing_factory = pf.PricingModelFactory()        # Initializing PricingModelFactory
 
         for _, row in df.iterrows():
-
-            contract = ContractLoader.assign_contract_type(row, corra_rate)
-            ContractLoader.apply_correct_pricing(contract, pricing_factory)                 # Consider doing a filter to only price ITM contracts
+            contract = ContractLoader.assign_contract_type(row, rates)
+            ContractLoader.apply_correct_pricing(contract, pricing_factory)               
             ContractLoader.apply_price_difference(contract)
             ContractLoader.calculate_greeks(contract)
             
-            if contract.price_difference > 0:                                   # Only append contracts that have a positive trading edge  
+            if contract.price_difference > 0:                                   # Only append contracts that are undervalued  
                 contract_data.append(contract)
 
         return contract_data
 
     @staticmethod
-    def assign_contract_type(row, corra_rate):                          
-
+    def assign_contract_type(row, rates):                          
         name = row["contractSymbol"] 
         underlying_price = row["Underlying_Price"] 
         strike_price = row["strike"] 
         itm = row["inTheMoney"]
         ttm = row["ttm"] 
-        risk_free_rate = corra_rate 
+        risk_free_rate = ContractLoader.get_risk_free_rate(row["ttm"], rates) 
         volatility = row["impliedVolatility"] 
         contract_type = row["Type"]
         ask = row["ask"]        
@@ -103,3 +97,14 @@ class ContractLoader:
         contract.vega = greeks.vega
         contract.theta = greeks.theta
         contract.rho = greeks.rho
+
+    @staticmethod
+    def get_risk_free_rate(ttm, rates):
+        if ttm <= 1/12:
+            return rates.get("1m", rates["CORRA"])  # Use CORRA if missing
+        elif ttm <= 3/12:
+            return rates.get("3m", rates["CORRA"])
+        elif ttm <= 6/12:
+            return rates.get("6m", rates["CORRA"])
+        else:
+            return rates.get("1y", rates["CORRA"])
